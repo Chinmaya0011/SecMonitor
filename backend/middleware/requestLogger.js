@@ -4,6 +4,11 @@ const logger = require("../utils/logger");
 // IMPORTANT: this middleware records incoming request metadata for tracing and audit.
 // It avoids noisy/unnecessary details while preserving important info for debugging.
 const requestLogger = (req, res, next) => {
+  // Skip logging for /api/log* routes
+  if (req.originalUrl && req.originalUrl.match(/^\/api\/log/)) {
+    return next();
+  }
+
   try {
     const logData = {
       type: 'request',

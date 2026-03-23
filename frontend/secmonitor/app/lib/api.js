@@ -129,6 +129,98 @@ class ApiService {
     }
   }
 
+  // Clear all logs
+  async clearAllLogs(confirm = false) {
+    try {
+      if (!confirm) {
+        return { 
+          success: false, 
+          error: 'Confirmation required. Set confirm=true to clear all logs',
+          data: null 
+        };
+      }
+
+      const response = await fetch(`${API_BASE_URL}/logs/clear?confirm=true`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to clear logs');
+      }
+      
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Error clearing logs:', error);
+      return { success: false, error: error.message, data: null };
+    }
+  }
+
+  // Clear logs older than specified days
+  async clearOldLogs(days = 30) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/logs/clear/old?days=${days}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to clear old logs');
+      }
+      
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Error clearing old logs:', error);
+      return { success: false, error: error.message, data: null };
+    }
+  }
+
+  // Clear all logs with admin token (if authentication is required)
+  async clearAllLogsWithAuth(confirm = false, adminToken = null) {
+    try {
+      if (!confirm) {
+        return { 
+          success: false, 
+          error: 'Confirmation required. Set confirm=true to clear all logs',
+          data: null 
+        };
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add authorization header if token is provided
+      if (adminToken) {
+        headers['Authorization'] = `Bearer ${adminToken}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/logs/clear?confirm=true`, {
+        method: 'DELETE',
+        headers: headers,
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to clear logs');
+      }
+      
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Error clearing logs:', error);
+      return { success: false, error: error.message, data: null };
+    }
+  }
+
   logout() {
     localStorage.removeItem('user');
     localStorage.removeItem('isAuthenticated');
@@ -147,6 +239,12 @@ class ApiService {
       return user ? JSON.parse(user) : null;
     }
     return null;
+  }
+
+  // Check if current user has admin privileges
+  isAdmin() {
+    const user = this.getUser();
+    return user && user.role === 'admin';
   }
 }
 

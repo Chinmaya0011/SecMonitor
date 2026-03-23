@@ -4,6 +4,11 @@ const logger = require("../utils/logger");
 // IMPORTANT: this middleware logs response metadata in 'finish' event, after the backend has sent the response.
 // It does not log request body again, only response attributes and timing.
 const responseLogger = (req, res, next) => {
+  // Skip logging for /api/log* routes
+  if (req.originalUrl && req.originalUrl.match(/^\/api\/log/)) {
+    return next();
+  }
+
   const start = process.hrtime.bigint(); // High-resolution timing for accurate response time
 
   res.on('finish', () => {
