@@ -13,30 +13,135 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  
+  // OTP related states
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  
   const router = useRouter();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     if (api.isAuthenticated()) {
       router.push('/logger');
     }
   }, [router]);
 
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  const handleSendOTP = () => {
+    if (!email) {
+      setOtpError('Please enter email address first');
+      return;
+    }
+
+    if (!email.includes('@') || !email.includes('.')) {
+      setOtpError('Please enter a valid email address');
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError('');
+    setOtpSuccess('');
+
+    setTimeout(() => {
+      setOtpSent(true);
+      setOtpSuccess('OTP sent to your email!');
+      setResendCooldown(60);
+      setOtpLoading(false);
+    }, 1000);
+  };
+
+  const handleOtpChange = (index, value) => {
+    if (value.length > 1) return;
+    
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    setOtpError('');
+
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  const handleVerifyOTP = () => {
+    const otpValue = otp.join('');
+    if (otpValue.length !== 6) {
+      setOtpError('Please enter the complete 6-digit code');
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError('');
+    setOtpSuccess('');
+
+    setTimeout(() => {
+      if (otpValue === '123456') {
+        setIsEmailVerified(true);
+        setOtpSuccess('Email verified successfully!');
+        setTimeout(() => {
+          setCurrentStep(2);
+        }, 800);
+      } else {
+        setOtpError('Invalid OTP. Demo code: 123456');
+      }
+      setOtpLoading(false);
+    }, 800);
+  };
+
+  const handleNextStep = () => {
+    if (currentStep === 1 && !isEmailVerified) {
+      setError('Please verify your email address first');
+      return;
+    }
+    
+    if (currentStep === 2) {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return;
+      }
+      
+      setCurrentStep(3);
+      setError('');
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      setError('');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
 
     setLoading(true);
 
@@ -49,117 +154,270 @@ export default function SignupPage() {
       }, 2000);
     } else {
       setError(result.error);
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 scanline">
-      <div className="absolute top-0 left-0 w-full p-4">
-        <div className="text-accent text-sm font-mono">
+    <div className="min-h-screen flex items-center justify-center p-3 scanline">
+      <div className="absolute top-0 left-0 w-full p-3">
+        <div className="text-accent text-xs font-mono">
           SECMONITOR v1.0 [{new Date().toLocaleTimeString()}]
         </div>
       </div>
 
       <div className="w-full max-w-md">
-        <div className="border border-border bg-card p-8 rounded-lg glow-border relative">
-          <div className="absolute -top-3 left-4 bg-card px-2 text-accent text-sm font-mono">
-            ACCESS REQUEST
+        <div className="border border-border bg-card p-5 rounded-lg glow-border relative">
+          <div className="absolute -top-3 left-4 bg-card px-2 text-accent text-xs font-mono">
+            REGISTRATION TERMINAL
           </div>
 
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-mono text-accent glow-text mb-2">
-              SECMONITOR
-            </h1>
-            <div className="text-foreground-secondary text-sm font-mono">
-              REGISTRATION TERMINAL
+          {/* Step Indicators */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between gap-2">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex-1 text-center">
+                  <div className={`
+                    w-8 h-8 mx-auto rounded-full border-2 flex items-center justify-center text-xs font-mono transition-all
+                    ${currentStep >= step 
+                      ? 'border-accent text-accent glow-text' 
+                      : 'border-border text-foreground-secondary'
+                    }
+                    ${currentStep > step ? 'bg-accent/10' : ''}
+                  `}>
+                    {currentStep > step ? '✓' : step}
+                  </div>
+                  <div className="text-[10px] font-mono mt-1 text-foreground-secondary">
+                    {step === 1 && 'VERIFY'}
+                    {step === 2 && 'PASSWORD'}
+                    {step === 3 && 'COMPLETE'}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="mt-2 text-xs text-foreground-secondary">
-              ====== NEW USER ======
+            <div className="relative mt-2">
+              <div className="absolute top-0 left-0 w-full h-px bg-border"></div>
+              <div 
+                className="absolute top-0 left-0 h-px bg-accent transition-all duration-300"
+                style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
+              ></div>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="border border-danger bg-danger/10 p-3 rounded">
-                <span className="text-danger text-sm font-mono">[ERROR] {error}</span>
+              <div className="border border-danger bg-danger/10 p-2 rounded">
+                <span className="text-danger text-xs font-mono">[ERROR] {error}</span>
               </div>
             )}
 
             {success && (
-              <div className="border border-success bg-success/10 p-3 rounded">
-                <span className="text-success text-sm font-mono">[SUCCESS] {success}</span>
+              <div className="border border-success bg-success/10 p-2 rounded">
+                <span className="text-success text-xs font-mono">[SUCCESS] {success}</span>
               </div>
             )}
 
-            <div>
-              <label className="block text-foreground-secondary text-sm font-mono mb-2">
-                &gt; EMAIL_ADDRESS
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full terminal-input p-3 rounded font-mono text-sm"
-                placeholder="user@example.com"
-                required
-              />
-            </div>
+            {/* Step 1: Email Verification */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-foreground-secondary text-xs font-mono mb-1">
+                    &gt; EMAIL_ADDRESS
+                    {isEmailVerified && (
+                      <span className="ml-2 text-success text-[10px]">✓ VERIFIED</span>
+                    )}
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (isEmailVerified) setIsEmailVerified(false);
+                        if (otpSent) setOtpSent(false);
+                        setOtpError('');
+                        setOtpSuccess('');
+                      }}
+                      className="flex-1 terminal-input p-2 rounded text-xs font-mono"
+                      placeholder="user@example.com"
+                      required
+                      disabled={isEmailVerified}
+                    />
+                    {!isEmailVerified && (
+                      <button
+                        type="button"
+                        onClick={handleSendOTP}
+                        disabled={otpLoading || resendCooldown > 0}
+                        className="px-3 border border-accent text-accent text-xs font-mono rounded hover:bg-accent/10 transition-all disabled:opacity-50"
+                      >
+                        {otpLoading ? '...' : resendCooldown > 0 ? `${resendCooldown}s` : 'SEND'}
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-foreground-secondary text-sm font-mono mb-2">
-                &gt; PASSWORD (min 6 chars)
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full terminal-input p-3 rounded font-mono text-sm"
-                placeholder="********"
-                required
-              />
-            </div>
+                {/* OTP Section */}
+                {otpSent && !isEmailVerified && (
+                  <div className="p-3 border border-accent/30 rounded bg-accent/5">
+                    <div className="text-foreground-secondary text-[10px] font-mono mb-2">
+                      &gt; ENTER_6_DIGIT_CODE
+                    </div>
+                    <div className="flex gap-1 justify-center mb-2">
+                      {otp.map((digit, index) => (
+                        <input
+                          key={index}
+                          id={`otp-${index}`}
+                          type="text"
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          className="w-9 h-9 text-center text-sm font-mono terminal-input rounded"
+                          maxLength={1}
+                          autoComplete="off"
+                        />
+                      ))}
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={handleVerifyOTP}
+                      disabled={otpLoading || otp.join('').length !== 6}
+                      className="w-full py-1.5 border border-accent text-accent text-xs font-mono rounded hover:bg-accent/10 transition-all disabled:opacity-50 mb-2"
+                    >
+                      {otpLoading ? '[VERIFYING...]' : '[VERIFY] >_'}
+                    </button>
+                    
+                    {otpError && (
+                      <div className="text-danger text-[10px] font-mono text-center">[ERROR] {otpError}</div>
+                    )}
+                    
+                    {otpSuccess && (
+                      <div className="text-success text-[10px] font-mono text-center">[OK] {otpSuccess}</div>
+                    )}
+                    
+                    <div className="text-center mt-2">
+                      <button
+                        type="button"
+                        onClick={handleSendOTP}
+                        disabled={resendCooldown > 0}
+                        className="text-accent/70 hover:text-accent text-[10px] font-mono disabled:opacity-50"
+                      >
+                        {resendCooldown > 0 ? `RESEND IN ${resendCooldown}s` : '⟳ RESEND OTP'}
+                      </button>
+                    </div>
 
-            <div>
-              <label className="block text-foreground-secondary text-sm font-mono mb-2">
-                &gt; CONFIRM_PASSWORD
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full terminal-input p-3 rounded font-mono text-sm"
-                placeholder="********"
-                required
-              />
-            </div>
+                    <div className="text-center text-foreground-secondary/50 text-[9px] font-mono mt-2">
+                      [DEMO: 123456]
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-transparent border border-accent text-accent font-mono py-3 px-4 rounded hover:bg-accent/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
-            >
-              <span className="relative z-10">
-                {loading ? '[PROCESSING...]' : '[REGISTER] >_'}
-              </span>
-              <div className="absolute inset-0 bg-accent/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            </button>
+            {/* Step 2: Create Password */}
+            {currentStep === 2 && isEmailVerified && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-foreground-secondary text-xs font-mono mb-1">
+                    &gt; PASSWORD (min 6 chars)
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full terminal-input p-2 rounded text-xs font-mono"
+                    placeholder="********"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-foreground-secondary text-xs font-mono mb-1">
+                    &gt; CONFIRM_PASSWORD
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full terminal-input p-2 rounded text-xs font-mono"
+                    placeholder="********"
+                    required
+                  />
+                </div>
+
+                <div className="text-foreground-secondary text-[10px] font-mono space-y-1">
+                  <div>PASSWORD REQUIREMENTS:</div>
+                  <div className="pl-3">
+                    {password.length >= 6 ? '✓' : '○'} Minimum 6 characters
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Complete Registration */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <div className="border border-success bg-success/10 p-3 rounded text-center">
+                  <div className="text-success text-sm font-mono mb-1">✓ VERIFICATION COMPLETE</div>
+                  <div className="text-foreground-secondary text-xs font-mono">
+                    Email: {email}
+                  </div>
+                  <div className="text-foreground-secondary text-[10px] font-mono mt-2">
+                    [READY TO REGISTER]
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-transparent border border-accent text-accent font-mono py-2 px-3 rounded text-sm hover:bg-accent/10 transition-all disabled:opacity-50"
+                  >
+                    {loading ? '[PROCESSING...]' : '[REGISTER] >_'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            {currentStep !== 3 && (
+              <div className="flex gap-3 pt-2">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePreviousStep}
+                    className="flex-1 border border-foreground-secondary text-foreground-secondary font-mono py-2 px-3 rounded text-xs hover:bg-foreground-secondary/10 transition-all"
+                  >
+                    &lt; BACK
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="flex-1 border border-accent text-accent font-mono py-2 px-3 rounded text-xs hover:bg-accent/10 transition-all"
+                >
+                  {currentStep === 2 ? 'CONTINUE >' : 'NEXT >'}
+                </button>
+              </div>
+            )}
           </form>
 
-          <div className="mt-6 text-center">
-            <span className="text-foreground-secondary text-sm font-mono">
-              [ALREADY HAVE ACCESS?{' '}
-              <Link href="/login" className="text-accent hover:underline">
-                LOGIN
-              </Link>
-              ]
-            </span>
-          </div>
+          {/* Login Link */}
+          {currentStep !== 3 && (
+            <div className="mt-4 text-center">
+              <span className="text-foreground-secondary text-xs font-mono">
+                [ALREADY HAVE ACCESS?{' '}
+                <Link href="/login" className="text-accent hover:underline">
+                  LOGIN
+                </Link>
+                ]
+              </span>
+            </div>
+          )}
 
-          <div className="mt-4 text-center text-xs text-foreground-secondary font-mono">
+          <div className="mt-4 text-center text-[10px] text-foreground-secondary font-mono">
             =================================
           </div>
         </div>
