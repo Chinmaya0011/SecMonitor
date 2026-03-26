@@ -5,6 +5,7 @@ const { hashPassword, comparePassword } = require("../utils/bcrypt.js");
 
 
 // 🔐 LOGIN
+// 🔐 LOGIN
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -14,25 +15,25 @@ const login = async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+    if (!user) return errorResponse(res, "Invalid email or password", null, 401);
 
-    if (!user) {
-      return errorResponse(res, "Invalid email or password", null, 401);
-    }
-
-    // ✅ Use util
     const isMatch = await comparePassword(password, user.password);
-
-    if (!isMatch) {
-      return errorResponse(res, "Invalid email or password", null, 401);
-    }
+    if (!isMatch) return errorResponse(res, "Invalid email or password", null, 401);
 
     const token = signToken({
       id: user._id,
       email: user.email,
     });
 
+    // ✅ Set token in HttpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,      // JS cannot access cookie
+      secure: process.env.NODE_ENV === 'production', // only HTTPS in production
+      sameSite: 'strict',  // prevent CSRF
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
     return successResponse(res, "Login successful", {
-      token,
       user: {
         id: user._id,
         email: user.email,
@@ -86,4 +87,37 @@ const signup = async (req, res) => {
   }
 };
 
-module.exports = { login, signup };
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    return successResponse(res, "Profile fetched successfully", user);
+  } catch (error) {
+    return errorResponse(res, "Server error", error.message, 500);
+  }
+};
+
+const getAllProfile=async(req,res)=>{
+  try{
+    const users=await User.find()
+    return successResponse(res, "Profiles fetched successfully", users);
+  } catch (error) {
+    return errorResponse(res, "Server error", error.message, 500);
+
+  }
+}
+
+
+const deleteAllUsers = async (req, res) => {
+  try {
+    const result = await User.deleteMany({});
+
+    return successResponse(
+      res,
+      "All users deleted successfully",
+      { deletedCount: result.deletedCount }
+    );
+  } catch (error) {
+    return errorResponse(res, "Server error", error.message, 500);
+  }
+};
+module.exports = { login, signup, getProfile,getAllProfile,deleteAllUsers };

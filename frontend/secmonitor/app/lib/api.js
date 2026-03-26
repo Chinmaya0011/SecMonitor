@@ -1,6 +1,13 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 class ApiService {
+  constructor() {
+    // Ensure fetch includes credentials (cookies) for all requests
+    this.defaultOptions = {
+      credentials: 'include', // Important: sends cookies with requests
+    };
+  }
+
   async signup(email, password) {
     try {
       const response = await fetch(`${API_BASE_URL}/user/signup`, {
@@ -8,6 +15,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies
         body: JSON.stringify({ email, password }),
       });
       
@@ -17,8 +25,15 @@ class ApiService {
         throw new Error(result.message || 'Signup failed');
       }
       
+      // Store user data (no token needed as it's in HTTP-only cookie)
+      if (result.data?.user) {
+        localStorage.setItem('user', JSON.stringify(result.data.user));
+        localStorage.setItem('isAuthenticated', 'true');
+      }
+      
       return { success: result.success, data: result.data, error: result.error };
     } catch (error) {
+      console.error('Signup error:', error);
       return { success: false, error: error.message, data: null };
     }
   }
@@ -30,6 +45,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies
         body: JSON.stringify({ email, password }),
       });
       
@@ -39,18 +55,113 @@ class ApiService {
         throw new Error(result.message || 'Login failed');
       }
       
-      localStorage.setItem('user', JSON.stringify(result.data));
-      localStorage.setItem('isAuthenticated', 'true');
+      // Store user data (token is automatically handled by HTTP-only cookie)
+      if (result.data?.user) {
+        localStorage.setItem('user', JSON.stringify(result.data.user));
+        localStorage.setItem('isAuthenticated', 'true');
+      }
       
       return { success: result.success, data: result.data, error: result.error };
     } catch (error) {
+      console.error('Login error:', error);
       return { success: false, error: error.message, data: null };
+    }
+  }
+
+  async logout() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/logout`, {
+        method: 'POST',
+        credentials: 'include', // Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Clear local storage
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+      }
+      
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if server request fails, clear local storage
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      return { success: false, error: error.message, data: null };
+    }
+  }
+
+  async getProfile() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/profile`, {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Unauthorized - clear local storage
+          this.logout();
+          throw new Error('Session expired. Please login again.');
+        }
+        throw new Error('Failed to fetch profile');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        // Update user data in local storage
+        localStorage.setItem('user', JSON.stringify(result.data));
+      }
+      
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      return { success: false, error: error.message, data: null };
+    }
+  }
+
+  async getAllProfiles() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/profiles`, {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Admin access required');
+        }
+        if (response.status === 401) {
+          throw new Error('Authentication required');
+        }
+        throw new Error('Failed to fetch profiles');
+      }
+      
+      const result = await response.json();
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+      return { success: false, error: error.message, data: [] };
     }
   }
 
   async getLogs() {
     try {
-      const response = await fetch(`${API_BASE_URL}/logs`);
+      const response = await fetch(`${API_BASE_URL}/logs`, {
+        credentials: 'include', // Include cookies if logs require auth
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch logs');
@@ -66,7 +177,9 @@ class ApiService {
 
   async getLogsByType(type, limit = 100) {
     try {
-      const response = await fetch(`${API_BASE_URL}/logs/type/${type}?limit=${limit}`);
+      const response = await fetch(`${API_BASE_URL}/logs/type/${type}?limit=${limit}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch logs by type');
@@ -83,7 +196,9 @@ class ApiService {
   async searchLogs(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const response = await fetch(`${API_BASE_URL}/logs/search?${queryString}`);
+      const response = await fetch(`${API_BASE_URL}/logs/search?${queryString}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to search logs');
@@ -99,7 +214,9 @@ class ApiService {
 
   async getLogStats() {
     try {
-      const response = await fetch(`${API_BASE_URL}/logs/stats`);
+      const response = await fetch(`${API_BASE_URL}/logs/stats`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch log stats');
@@ -115,7 +232,9 @@ class ApiService {
 
   async getLogsPaginated(page = 1, limit = 50) {
     try {
-      const response = await fetch(`${API_BASE_URL}/logs/paginated?page=${page}&limit=${limit}`);
+      const response = await fetch(`${API_BASE_URL}/logs/paginated?page=${page}&limit=${limit}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch paginated logs');
@@ -129,7 +248,7 @@ class ApiService {
     }
   }
 
-  // Clear all logs
+  // Clear all logs (with confirmation)
   async clearAllLogs(confirm = false) {
     try {
       if (!confirm) {
@@ -145,6 +264,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for auth
       });
       
       const result = await response.json();
@@ -168,6 +288,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
       
       const result = await response.json();
@@ -183,49 +304,7 @@ class ApiService {
     }
   }
 
-  // Clear all logs with admin token (if authentication is required)
-  async clearAllLogsWithAuth(confirm = false, adminToken = null) {
-    try {
-      if (!confirm) {
-        return { 
-          success: false, 
-          error: 'Confirmation required. Set confirm=true to clear all logs',
-          data: null 
-        };
-      }
-
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-
-      // Add authorization header if token is provided
-      if (adminToken) {
-        headers['Authorization'] = `Bearer ${adminToken}`;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/logs/clear?confirm=true`, {
-        method: 'DELETE',
-        headers: headers,
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to clear logs');
-      }
-      
-      return { success: result.success, data: result.data, error: result.error };
-    } catch (error) {
-      console.error('Error clearing logs:', error);
-      return { success: false, error: error.message, data: null };
-    }
-  }
-
-  logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAuthenticated');
-  }
-
+  // Check authentication status
   isAuthenticated() {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('isAuthenticated') === 'true';
@@ -233,6 +312,7 @@ class ApiService {
     return false;
   }
 
+  // Get current user
   getUser() {
     if (typeof window !== 'undefined') {
       const user = localStorage.getItem('user');
@@ -245,6 +325,19 @@ class ApiService {
   isAdmin() {
     const user = this.getUser();
     return user && user.role === 'admin';
+  }
+
+  // Verify session with server
+  async verifySession() {
+    try {
+      const profile = await this.getProfile();
+      if (profile.success && profile.data) {
+        return { valid: true, user: profile.data };
+      }
+      return { valid: false, error: profile.error };
+    } catch (error) {
+      return { valid: false, error: error.message };
+    }
   }
 }
 

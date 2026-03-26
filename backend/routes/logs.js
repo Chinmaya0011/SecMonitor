@@ -9,7 +9,8 @@ const {
   getLogsPaginated,
   clearAllLogs,
   clearOldLogs,
-  getLogById
+  getLogById,
+
 } = require("../controllers/logController");
 
 // Get all logs (latest 100)
@@ -32,5 +33,4 @@ router.delete("/clear", clearAllLogs);
 
 // Clear logs older than specified days
 router.delete("/clear/old", clearOldLogs);
-
 module.exports = router;
