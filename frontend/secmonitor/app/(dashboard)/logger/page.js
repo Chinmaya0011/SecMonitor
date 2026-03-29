@@ -90,6 +90,7 @@ export default function LoggerPage() {
       router.push('/login');
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUser(api.getUser());
     fetchLogs();
     fetchStats();
@@ -124,6 +125,7 @@ export default function LoggerPage() {
       });
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilteredLogs(filtered);
   }, [logs, filter, searchTerm, urlFilter]);
 
