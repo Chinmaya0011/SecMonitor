@@ -22,7 +22,10 @@ export default function RootLayout({ children }) {
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased w-full m-0 p-0`}>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} antialiased w-full m-0 p-0`}
+        suppressHydrationWarning
+      >
         <main className="w-full min-h-screen">
           {children}
         </main>
