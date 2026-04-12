@@ -29,7 +29,7 @@ function getRoutes(router, prefix = "") {
 const app = require("../app"); // <- make sure this path is correct
 
 if (!app._router) {
-  console.error("No router detected in app. Make sure routes are registered.");
+  // No router detected in app. Make sure routes are registered.
   process.exit(1);
 }
 
@@ -47,4 +47,4 @@ allRoutes.forEach((ep) => {
 });
 
 fs.writeFileSync("API_DOCUMENTATION.md", mdContent);
-console.log("API documentation generated: API_DOCUMENTATION.md");
+// API documentation generated: API_DOCUMENTATION.md
