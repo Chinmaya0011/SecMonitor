@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
   constructor() {
@@ -131,14 +131,13 @@ class ApiService {
 
   async getAllProfiles() {
     try {
-      const response = await fetch(`${API_BASE_URL}/user/profiles`, {
+      const response = await fetch(`${API_BASE_URL}/user/allprofile`, {
         method: 'GET',
         credentials: 'include', // Include cookies for authentication
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
       if (!response.ok) {
         if (response.status === 403) {
           throw new Error('Admin access required');
@@ -148,12 +147,30 @@ class ApiService {
         }
         throw new Error('Failed to fetch profiles');
       }
-      
       const result = await response.json();
       return { success: result.success, data: result.data, error: result.error };
     } catch (error) {
       console.error('Error fetching profiles:', error);
       return { success: false, error: error.message, data: [] };
+    }
+  }
+  async deleteAllUsers() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/allusers`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to delete users');
+      }
+      return { success: result.success, data: result.data, error: result.error };
+    } catch (error) {
+      console.error('Error deleting users:', error);
+      return { success: false, error: error.message, data: null };
     }
   }
 
