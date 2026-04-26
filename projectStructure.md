@@ -2,7 +2,7 @@ Great choice — this is actually a **very strong beginner → intermediate leve
 
 We’ll build this in **3 simple phases**:
 
-1. Backend (Express + Logger)
+1. Backend (Express + Logger) 
 2. Queue + Worker
 3. Dashboard (basic)
 
